@@ -2,6 +2,7 @@ import sys
 from time import sleep
 
 import pygame
+import random
 
 from settings import Settings
 from game_stats import GameStats
@@ -10,6 +11,7 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+from monster import Monster
 
 
 class AlienInvasion:
@@ -33,6 +35,7 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.monsters = pygame.sprite.Group() 
 
         self._create_fleet()
 
@@ -48,8 +51,43 @@ class AlienInvasion:
                 self.ship.update()
                 self._update_bullets()
                 self._update_aliens()
+                self._update_monster()
 
             self._update_screen()
+
+    def _update_monster(self):
+        self._check_monster_edges()
+        self.monsters.update()
+
+        if pygame.sprite.spritecollideany(self.ship, self.monsters):
+            self._ship_hit()
+
+        # Look for monster hitting the bottom of the screen.
+        self._check_monster_bottom()
+
+    def _check_monster_edges(self):
+        """Respond appropriately if any aliens have reached an edge."""
+        for monster in self.monsters.sprites():
+            if monster.check_edges():
+                monster.change_direction()
+
+    def _check_monster_bottom(self):
+        """Check if any monsters have reached the bottom of the screen."""
+        screen_rect = self.screen.get_rect()
+        for monster in self.monsters.sprites():
+            if monster.rect.bottom >= screen_rect.bottom:
+                # Treat this the same as if the ship got hit.
+                self._ship_hit()
+                break
+    
+    def _create_monster(self):
+        """Create an monster and place it in the row."""
+        monster = Monster(self)
+        monster_width, monster_height = monster.rect.size
+        monster.x = monster_width + 2 * monster_width * 1
+        monster.rect.x = monster.x
+        monster.rect.y = monster.rect.height + 2 * monster.rect.height * 1
+        self.monsters.add(monster)
 
     def _check_events(self):
         """Respond to keypresses and mouse events."""
@@ -78,9 +116,10 @@ class AlienInvasion:
             self.sb.prep_level()
             self.sb.prep_ships()
 
-            # Get rid of any remaining aliens and bullets.
+            # Get rid of any remaining aliens, monsters and bullets.
             self.aliens.empty()
             self.bullets.empty()
+            self.monsters.empty()
             
             # Create a new fleet and center the ship.
             self._create_fleet()
@@ -124,6 +163,28 @@ class AlienInvasion:
                  self.bullets.remove(bullet)
 
         self._check_bullet_alien_collisions()
+        self._check_monster_collisions()
+
+    def _check_monster_collisions(self):
+        collisions2 = pygame.sprite.groupcollide(
+                self.monsters, self.bullets, False, True) 
+        if collisions2:
+            for monster in collisions2:
+                if monster.kill_monster():
+                    self.stats.score += self.settings.monster_points
+                    monster.kill()
+                    self.sb.prep_score()
+                    self.sb.check_high_score()
+
+        if not self.aliens and not self.monsters:
+            # Destroy existing bullets and create new fleet.
+            self.bullets.empty()
+            self._create_fleet()
+            self.settings.increase_speed()
+
+            # Increase level.
+            self.stats.level += 1
+            self.sb.prep_level()
 
     def _check_bullet_alien_collisions(self):
         """Respond to bullet-alien collisions."""
@@ -137,7 +198,7 @@ class AlienInvasion:
             self.sb.prep_score()
             self.sb.check_high_score()
 
-        if not self.aliens:
+        if not self.aliens and not self.monsters:
             # Destroy existing bullets and create new fleet.
             self.bullets.empty()
             self._create_fleet()
@@ -181,6 +242,7 @@ class AlienInvasion:
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
             self.bullets.empty()
+            self.monsters.empty()
             
             # Create a new fleet and center the ship.
             self._create_fleet()
@@ -226,6 +288,8 @@ class AlienInvasion:
         for alien in self.aliens.sprites():
             if alien.check_edges():
                 self._change_fleet_direction()
+                if random.random() < 0.05:
+                    self._create_monster()
                 break
             
     def _change_fleet_direction(self):
@@ -241,6 +305,7 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        self.monsters.draw(self.screen)
 
         # Draw the score information.
         self.sb.show_score()
