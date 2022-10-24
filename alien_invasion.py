@@ -300,7 +300,7 @@ class AlienInvasion:
                 if appear < 5:
                     self._create_superalien()
                 appear = random.random() * 100
-                if appear < 20:
+                if appear < 5:
                     self._create_powerups()
                 appear = random.random() * 100
                 if self.upgrade == True and appear < 10:
