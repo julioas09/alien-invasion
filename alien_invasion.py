@@ -1,5 +1,6 @@
 import sys
 from time import sleep
+import random
 
 import pygame
 
@@ -10,7 +11,8 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
-
+from alien import SuperAlien
+from powerup import PowerUp
 
 class AlienInvasion:
     """Overall class to manage game assets and behavior."""
@@ -29,10 +31,13 @@ class AlienInvasion:
         #   and create a scoreboard.
         self.stats = GameStats(self)
         self.sb = Scoreboard(self)
+        self.upgrade = False
 
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
+        self.powerups = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.superaliens = pygame.sprite.Group()
 
         self._create_fleet()
 
@@ -46,8 +51,10 @@ class AlienInvasion:
 
             if self.stats.game_active:
                 self.ship.update()
+                self._update_powerups()
                 self._update_bullets()
                 self._update_aliens()
+                self._update_superaliens()
 
             self._update_screen()
 
@@ -80,8 +87,10 @@ class AlienInvasion:
 
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
+            self.superaliens.empty()
             self.bullets.empty()
-            
+            self.powerups.empty()
+
             # Create a new fleet and center the ship.
             self._create_fleet()
             self.ship.center_ship()
@@ -124,6 +133,20 @@ class AlienInvasion:
                  self.bullets.remove(bullet)
 
         self._check_bullet_alien_collisions()
+        self._check_bullet_superalien_collisions()
+    
+    def _update_powerups(self):
+        self._check_powerup_collisions()
+
+    def _check_powerup_collisions(self):
+        collisions = pygame.sprite.groupcollide(
+                self.bullets, self.powerups, True, True)
+        
+        if collisions:
+            self.settings.bullet_height = 20
+            self.settings.bullet_width = 75
+            self.upgrade = True
+        
 
     def _check_bullet_alien_collisions(self):
         """Respond to bullet-alien collisions."""
@@ -147,6 +170,20 @@ class AlienInvasion:
             self.stats.level += 1
             self.sb.prep_level()
 
+    def _check_bullet_superalien_collisions(self):
+        """Respond to bullet-superalien collisions."""
+        # Remove any bullets and aliens that have collided.
+        collisions = pygame.sprite.groupcollide(
+                self.bullets, self.superaliens, True, False)
+        
+        if collisions:
+            for superaliens in collisions.values():
+                a = superaliens[0].damage()
+                if a:
+                    self.stats.score += self.settings.super_alienspoints
+                    self.sb.prep_score()
+                    self.sb.check_high_score()
+
     def _update_aliens(self):
         """
         Check if the fleet is at an edge,
@@ -161,12 +198,31 @@ class AlienInvasion:
 
         # Look for aliens hitting the bottom of the screen.
         self._check_aliens_bottom()
+    
+    def _update_superaliens(self):
+
+        self._check_superalien_edges()
+        self.superaliens.update()
+
+        if pygame.sprite.spritecollideany(self.ship, self.superaliens):
+            self._ship_hit()
+        
+        self._check_superalien_bottom()
+
 
     def _check_aliens_bottom(self):
         """Check if any aliens have reached the bottom of the screen."""
         screen_rect = self.screen.get_rect()
         for alien in self.aliens.sprites():
             if alien.rect.bottom >= screen_rect.bottom:
+                # Treat this the same as if the ship got hit.
+                self._ship_hit()
+                break
+
+    def _check_superalien_bottom(self):
+        screen_rect = self.screen.get_rect()
+        for superalien in self.superaliens.sprites():
+            if superalien.rect.bottom >= screen_rect.bottom:
                 # Treat this the same as if the ship got hit.
                 self._ship_hit()
                 break
@@ -180,6 +236,7 @@ class AlienInvasion:
             
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
+            self.superaliens.empty()
             self.bullets.empty()
             
             # Create a new fleet and center the ship.
@@ -220,19 +277,51 @@ class AlienInvasion:
         alien.rect.x = alien.x
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
+    
+    def _create_superalien(self):
+        alien = Alien(self)
+        superAlien = SuperAlien(self)
+        alien_width, alien_height = alien.rect.size
+        superAlien.x = alien_width + 2 * alien_width * 10
+        superAlien.rect.x = superAlien.x
+        superAlien.rect.y = alien.rect.height + 2 * alien.rect.height * 0
+        self.superaliens.add(superAlien)
+    
+    def _create_powerups(self):
+        powerup = PowerUp(self)
+        self.powerups.add(powerup)
 
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
         for alien in self.aliens.sprites():
             if alien.check_edges():
                 self._change_fleet_direction()
+                appear = random.random() * 100
+                if appear < 5:
+                    self._create_superalien()
+                appear = random.random() * 100
+                if appear < 5:
+                    self._create_powerups()
+                appear = random.random() * 100
+                if self.upgrade == True and appear < 10:
+                    self.settings.bullet_width = 3
+                    self.settings.bullet_height = 15
                 break
+
+    def _check_superalien_edges(self):
+        
+        for superalien in self.superaliens.sprites():
+            if superalien.check_edges():
+                self._change_superalien_direction(superalien)
             
     def _change_fleet_direction(self):
         """Drop the entire fleet and change the fleet's direction."""
         for alien in self.aliens.sprites():
             alien.rect.y += self.settings.fleet_drop_speed
         self.settings.fleet_direction *= -1
+
+    def _change_superalien_direction(self, superAlien):
+        superAlien.direction *= -1
 
     def _update_screen(self):
         """Update images on the screen, and flip to the new screen."""
@@ -241,6 +330,8 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        self.superaliens.draw(self.screen)
+        self.powerups.draw(self.screen)
 
         # Draw the score information.
         self.sb.show_score()

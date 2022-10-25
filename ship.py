@@ -1,6 +1,7 @@
 import pygame
  
 from pygame.sprite import Sprite
+import time
  
 class Ship(Sprite):
     """A class to manage the ship."""
@@ -45,3 +46,5 @@ class Ship(Sprite):
         """Center the ship on the screen."""
         self.rect.midbottom = self.screen_rect.midbottom
         self.x = float(self.rect.x)
+
+
