@@ -46,3 +46,16 @@ class Settings:
         self.alien_speed *= self.speedup_scale
 
         self.alien_points = int(self.alien_points * self.score_scale)
+
+    def return_normal(self):
+        self.ship_speed = 1.5
+        self.bullet_speed = 3.0
+    
+    def powerup_bullet(self):
+        self.ship_speed = 50
+        self.bullet_speed = 50.0
+        self.bullet_width = 10
+        self.bullet_height = 30
+        self.bullet_color = (255, 255, 60)
+
+

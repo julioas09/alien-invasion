@@ -1,6 +1,8 @@
 import sys
 from time import sleep
 
+import random
+
 import pygame
 
 from settings import Settings
@@ -19,12 +21,14 @@ class AlienInvasion:
         """Initialize the game, and create game resources."""
         pygame.init()
         self.settings = Settings()
-
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         self.settings.screen_width = self.screen.get_rect().width
         self.settings.screen_height = self.screen.get_rect().height
         pygame.display.set_caption("Alien Invasion")
 
+        ##Power-up varible
+        self.powerUp=False
+        self.acc=5
         # Create an instance to store game statistics,
         #   and create a scoreboard.
         self.stats = GameStats(self)
@@ -43,12 +47,14 @@ class AlienInvasion:
         """Start the main loop for the game."""
         while True:
             self._check_events()
+           
+
 
             if self.stats.game_active:
                 self.ship.update()
                 self._update_bullets()
                 self._update_aliens()
-
+               
             self._update_screen()
 
     def _check_events(self):
@@ -220,14 +226,40 @@ class AlienInvasion:
         alien.rect.x = alien.x
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
-
+    
     def _check_fleet_edges(self):
+        self.screen.fill((87,181,190))
         """Respond appropriately if any aliens have reached an edge."""
+       
         for alien in self.aliens.sprites():
             if alien.check_edges():
+                
                 self._change_fleet_direction()
+                self.acc+=1
+                print("acc",self.acc)
+                if self.acc>4:
+                    self.acc=0
+                    r= random.randrange(0,20)
+                    print(r)
+                    if r<5:
+                        #self.screen.fill((87,181,190))
+                        self.settings.increase_speed()
+                        print("Power up")
+            
+                    else:
+                        self.settings.return_normal()
+                        #self.screen.fill(self.settings.bg_color)
+                        print("return normal")
+                
                 break
             
+        if self.powerUp== True:
+            self.screen.fill((87,181,190))
+        
+        else:
+            self.screen.fill(self.settings.bg_color)
+                    
+              
     def _change_fleet_direction(self):
         """Drop the entire fleet and change the fleet's direction."""
         for alien in self.aliens.sprites():
@@ -236,7 +268,9 @@ class AlienInvasion:
 
     def _update_screen(self):
         """Update images on the screen, and flip to the new screen."""
-        self.screen.fill(self.settings.bg_color)
+        #self.screen.fill(self.settings.bg_color)
+        
+
         self.ship.blitme()
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
