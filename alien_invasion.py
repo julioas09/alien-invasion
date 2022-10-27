@@ -2,7 +2,8 @@ import sys
 from time import sleep
 
 import pygame
-
+import random
+import time
 from settings import Settings
 from game_stats import GameStats
 from scoreboard import Scoreboard
@@ -10,7 +11,7 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
-
+from alien2 import Alien2
 
 class AlienInvasion:
     """Overall class to manage game assets and behavior."""
@@ -33,6 +34,7 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.specialAliens = pygame.sprite.Group()
 
         self._create_fleet()
 
@@ -108,8 +110,18 @@ class AlienInvasion:
             self.ship.moving_left = False
 
     def _fire_bullet(self):
-        """Create a new bullet and add it to the bullets group."""
+        """Create a new bullet and add it to the bullets group.""" 
         if len(self.bullets) < self.settings.bullets_allowed:
+            if self.settings.obamaTime:
+                self.settings.bullet_color = self.settings.obama_bullet_color[random.randint(0,2)]
+                if self.settings.obamaBullets == 0:
+                    self.settings.obamaTime = False
+                    self.settings.obamaBullets = 20
+                    self.settings.initialize_dynamic_settings()
+                new_bullet = Bullet(self)
+                self.settings.obamaBullets -= 1
+                self.bullets.add(new_bullet)
+            
             new_bullet = Bullet(self)
             self.bullets.add(new_bullet)
 
@@ -130,10 +142,24 @@ class AlienInvasion:
         # Remove any bullets and aliens that have collided.
         collisions = pygame.sprite.groupcollide(
                 self.bullets, self.aliens, True, True)
+        
+        collisions2 = pygame.sprite.groupcollide(self.bullets, self.specialAliens, True, False)
 
         if collisions:
             for aliens in collisions.values():
                 self.stats.score += self.settings.alien_points * len(aliens)
+            self.sb.prep_score()
+            self.sb.check_high_score()
+
+        if collisions2:
+            for aliens in collisions2.values():
+                self.stats.score += self.settings.alien_points * len(aliens)
+                for alien in aliens:
+                    if alien.lives == 0:
+                        self.specialAliens.remove(alien)
+                        self.obamaTime()
+                    else:
+                        alien.lives -= 1
             self.sb.prep_score()
             self.sb.check_high_score()
 
@@ -145,7 +171,10 @@ class AlienInvasion:
 
             # Increase level.
             self.stats.level += 1
-            self.sb.prep_level()
+            self.sb.prep_level() 
+
+    def obamaTime(self): 
+        self.settings.obamaKilled()
 
     def _update_aliens(self):
         """
@@ -154,6 +183,7 @@ class AlienInvasion:
         """
         self._check_fleet_edges()
         self.aliens.update()
+        self.specialAliens.update()
 
         # Look for alien-ship collisions.
         if pygame.sprite.spritecollideany(self.ship, self.aliens):
@@ -170,6 +200,11 @@ class AlienInvasion:
                 # Treat this the same as if the ship got hit.
                 self._ship_hit()
                 break
+        for alien in self.specialAliens.sprites():
+            if alien.rect.bottom >= screen_rect.bottom:
+
+                self._ship_hit()
+                break
 
     def _ship_hit(self):
         """Respond to the ship being hit by an alien."""
@@ -180,6 +215,7 @@ class AlienInvasion:
             
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
+            self.specialAliens.empty()
             self.bullets.empty()
             
             # Create a new fleet and center the ship.
@@ -196,6 +232,7 @@ class AlienInvasion:
         """Create the fleet of aliens."""
         # Create an alien and find the number of aliens in a row.
         # Spacing between each alien is equal to one alien width.
+        self.settings.obamaBullets = 0
         alien = Alien(self)
         alien_width, alien_height = alien.rect.size
         available_space_x = self.settings.screen_width - (2 * alien_width)
@@ -221,11 +258,43 @@ class AlienInvasion:
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
 
+    def _create_special_alien(self):
+        """Create a special alien and place it in the row.""" 
+        special_alien = Alien2(self)
+        special_alien_width, special_alien_height = special_alien.rect.size
+        special_alien.x = special_alien_width #+ 2 * special_alien_width
+        special_alien.rect.x = special_alien.x
+        special_alien.rect.y = special_alien.rect.height #+ 2 * special_alien.rect.height
+        self.specialAliens.add(special_alien)
+
+    def obamaAlert(self):
+        Font = pygame.font.SysFont("Arial", 250)
+        letterColor = (255, 215, 10)
+        self.obamaText = Font.render(" * OBAMA MODE * ", True, letterColor)
+        obamaTextRect = self.obamaText.get_rect()
+        obamaTextRect.center = (self.settings.screen_width / 2 - 1000, self.settings.screen_height / 2 - 250)
+        if self.settings.obamaTime and self.settings.obamaAlertAlternator: 
+            self.screen.blit(self.obamaText, obamaTextRect.center)
+            self.settings.obamaAlertAlternator = False
+            self.settings.obamaAlertCounter += 1
+        elif self.settings.obamaTime and not self.settings.obamaAlertAlternator:
+            self.screen.fill(self.settings.bg_color, obamaTextRect)
+            self.settings.obamaAlertAlternator = True
+        else:
+            pass
+ 
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
         for alien in self.aliens.sprites():
             if alien.check_edges():
+                x = random.randint(0, 100)
                 self._change_fleet_direction()
+                if x <= 50 and len(self.specialAliens) == 0:
+                    self._create_special_alien()
+                break
+        for alien in self.specialAliens.sprites():
+            if alien.check_edges():
+                alien.direction *= -1
                 break
             
     def _change_fleet_direction(self):
@@ -234,13 +303,22 @@ class AlienInvasion:
             alien.rect.y += self.settings.fleet_drop_speed
         self.settings.fleet_direction *= -1
 
+    def _change_special_alien_direction(self):
+
+        for alien in self.specialAliens.sprites():
+            alien.rect.y += self.settings.fleet_drop_speed
+        self.settings.alienDirection *= -1
+
     def _update_screen(self):
         """Update images on the screen, and flip to the new screen."""
         self.screen.fill(self.settings.bg_color)
         self.ship.blitme()
+        if self.settings.obamaAlertCounter < 200:
+            self.obamaAlert()
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        self.specialAliens.draw(self.screen)
 
         # Draw the score information.
         self.sb.show_score()
