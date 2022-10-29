@@ -1,3 +1,4 @@
+from time import time
 import pygame
  
 from pygame.sprite import Sprite
@@ -45,3 +46,12 @@ class Ship(Sprite):
         """Center the ship on the screen."""
         self.rect.midbottom = self.screen_rect.midbottom
         self.x = float(self.rect.x)
+
+    def apply_powerup(self):
+        """Apply power up to ship. This powerup has a 5% chance of appearing when aliens
+        hit the edge of the screen."""
+        self.image = pygame.image.load('images/spaceship-powerup.bmp')
+
+    def remove_powerup(self):
+        """Remove powerup from ship."""
+        self.image = pygame.image.load('images/ship.bmp')

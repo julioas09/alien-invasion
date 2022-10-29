@@ -1,7 +1,8 @@
+from symbol import power
 import sys
-from time import sleep
-
+from time import sleep, time
 import pygame
+from playsound import playsound
 
 from settings import Settings
 from game_stats import GameStats
@@ -10,6 +11,7 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+import random
 
 
 class AlienInvasion:
@@ -38,6 +40,9 @@ class AlienInvasion:
 
         # Make the Play button.
         self.play_button = Button(self, "Play")
+
+        self.powerupApplied = False # initially indicates to game that no power-up is applied
+
 
     def run_game(self):
         """Start the main loop for the game."""
@@ -139,6 +144,8 @@ class AlienInvasion:
 
         if not self.aliens:
             # Destroy existing bullets and create new fleet.
+            self.powerupApplied = False # lets game know that the powerup should no longer be applied for next round
+            self.remove_powerup() # removes powerup for next round
             self.bullets.empty()
             self._create_fleet()
             self.settings.increase_speed()
@@ -221,10 +228,25 @@ class AlienInvasion:
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
 
+    def apply_powerup(self):
+        self.ship.apply_powerup()
+        self.settings.apply_powerup()
+
+    def remove_powerup(self):
+        self.ship.remove_powerup()
+        self.settings.remove_powerup()
+
+
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
         for alien in self.aliens.sprites():
-            if alien.check_edges():
+            if alien.check_edges(): # if aliens hit screen edge
+                chance = random.randint(1, 101) # gets random number between 1 and 100
+                if(chance < 6): # checks if random number is between 1-5 (5% chance)
+                    if self.powerupApplied == False: # only applies power up if it is not already applied
+                        self.apply_powerup() # applies powerup
+                        playsound('sounds/powerup.mp3') # plays powerup sound
+                        self.powerupApplied = True # lets game know that powerup is applied
                 self._change_fleet_direction()
                 break
             
