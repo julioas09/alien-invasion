@@ -2,6 +2,7 @@ import sys
 from time import sleep
 
 import random
+from turtle import width
 
 import pygame
 
@@ -236,16 +237,21 @@ class AlienInvasion:
                 
                 self._change_fleet_direction()
                 self.acc+=1
-                print("acc",self.acc)
-                if self.acc>4:
+                if self.acc>4:#every 5 times an alien hits the edges of the screen, the system will see if it activates powerUP
                     self.acc=0
-                    r= random.randrange(0,20)
-                    print(r)
+                    # The powerUp has 5% of possibilities to appear
+                    r= random.randrange(0,100)
                     if r<5:
                         #self.screen.fill((87,181,190))
-                        self.settings.increase_speed()
+                        self.settings.powerup_bullet() #Call the function from settings
+
+                        #Add some text
+                        decay_font = pygame.font.Font("Decay-M5RB.ttf", 50)
+                        text_surface = decay_font.render('Power Up', True, (0, 0, 0))
+                        self.screen.blit(text_surface, (100,100)) 
                         print("Power up")
-            
+                        
+                            
                     else:
                         self.settings.return_normal()
                         #self.screen.fill(self.settings.bg_color)
@@ -258,8 +264,10 @@ class AlienInvasion:
         
         else:
             self.screen.fill(self.settings.bg_color)
-                    
-              
+
+
+               
+                
     def _change_fleet_direction(self):
         """Drop the entire fleet and change the fleet's direction."""
         for alien in self.aliens.sprites():
