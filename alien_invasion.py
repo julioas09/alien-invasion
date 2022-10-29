@@ -289,7 +289,7 @@ class AlienInvasion:
             if alien.check_edges():
                 x = random.randint(0, 100)
                 self._change_fleet_direction()
-                if x <= 50 and len(self.specialAliens) == 0:
+                if x <= 5 and len(self.specialAliens) == 0:
                     self._create_special_alien()
                 break
         for alien in self.specialAliens.sprites():
