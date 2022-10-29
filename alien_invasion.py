@@ -2,6 +2,8 @@ import sys
 from time import sleep
 
 import pygame
+import random
+import time
 
 from settings import Settings
 from game_stats import GameStats
@@ -10,6 +12,8 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+from juan import Juan
+from tuberculo import Tuberculo
 
 
 class AlienInvasion:
@@ -33,8 +37,12 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.juan = pygame.sprite.Group()
+        self.tuberculo = pygame.sprite.Group()
 
         self._create_fleet()
+
+        self.time = pygame.time.get_ticks()
 
         # Make the Play button.
         self.play_button = Button(self, "Play")
@@ -48,6 +56,8 @@ class AlienInvasion:
                 self.ship.update()
                 self._update_bullets()
                 self._update_aliens()
+                self._update_juan()
+                self._update_tuberculo()
 
             self._update_screen()
 
@@ -80,11 +90,16 @@ class AlienInvasion:
 
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
+            self.juan.empty()
+            self.tuberculo.empty()
             self.bullets.empty()
             
             # Create a new fleet and center the ship.
             self._create_fleet()
+            self._create_juanes()
+            self._create_tuberculos()
             self.ship.center_ship()
+
 
             # Hide the mouse cursor.
             pygame.mouse.set_visible(False)
@@ -128,24 +143,49 @@ class AlienInvasion:
     def _check_bullet_alien_collisions(self):
         """Respond to bullet-alien collisions."""
         # Remove any bullets and aliens that have collided.
-        collisions = pygame.sprite.groupcollide(
-                self.bullets, self.aliens, True, True)
-
+        collisions = pygame.sprite.groupcollide(self.bullets, self.aliens, True, True)
         if collisions:
             for aliens in collisions.values():
                 self.stats.score += self.settings.alien_points * len(aliens)
             self.sb.prep_score()
             self.sb.check_high_score()
 
+
+
+        if self.stats.juan_hp_left > 1:
+            collisions = pygame.sprite.groupcollide(self.bullets, self.juan, True, False)
+            if collisions:
+                self.stats.juan_hp_left -= 1
+        if self.stats.juan_hp_left == 1:
+            collisions = pygame.sprite.groupcollide(self.bullets, self.juan, True, True)
+            if collisions:
+                for juan in collisions.values():
+                    self.stats.juan_hp_left += 2
+                    self.stats.score += self.settings.juan_points * len(juan)
+                    self.settings.juan_direction == 1
+            self.sb.prep_score()
+            self.sb.check_high_score()
+
+
+
+
         if not self.aliens:
             # Destroy existing bullets and create new fleet.
             self.bullets.empty()
+            self.juan.empty()
+            self.tuberculo.empty()
             self._create_fleet()
             self.settings.increase_speed()
 
             # Increase level.
             self.stats.level += 1
             self.sb.prep_level()
+
+
+
+
+
+
 
     def _update_aliens(self):
         """
@@ -159,14 +199,69 @@ class AlienInvasion:
         if pygame.sprite.spritecollideany(self.ship, self.aliens):
             self._ship_hit()
 
+
         # Look for aliens hitting the bottom of the screen.
         self._check_aliens_bottom()
+
+    def _update_juan(self):
+        """
+        Check if the fleet is at an edge,
+          then update the positions of all aliens in the fleet.
+        """
+        self.juan.update()
+        self._check_juan_edges()
+
+        # Look for alien-ship collisions.
+        if pygame.sprite.spritecollideany(self.ship, self.juan):
+            self._ship_hit()
+
+        # Look for aliens hitting the bottom of the screen.
+        self._check_juan_bottom()
+
+    def _update_tuberculo(self):
+        """
+        Check if the fleet is at an edge,
+          then update the positions of all aliens in the fleet.
+        """
+        self.tuberculo.update()
+
+        # Look for alien-ship collisions.
+        if pygame.sprite.spritecollideany(self.ship, self.tuberculo):
+            self._ship_boost()
+
+
+        # Look for aliens hitting the bottom of the screen.
+        self._check_tuberculo_bottom()
+
+    def _ship_boost(self):
+        self.settings.ship_speed += 0.1
+        self.settings.bullet_speed += 0.1
+        now = pygame.time.get_ticks()
+        if now - self.time >= self.settings.time_buff:
+            self.settings.ship_speed == 1
+            self.settings.bullet_speed == 1
+
 
     def _check_aliens_bottom(self):
         """Check if any aliens have reached the bottom of the screen."""
         screen_rect = self.screen.get_rect()
         for alien in self.aliens.sprites():
             if alien.rect.bottom >= screen_rect.bottom:
+                # Treat this the same as if the ship got hit.
+                self._ship_hit()
+                break
+    def _check_tuberculo_bottom(self):
+        """Check if any aliens have reached the bottom of the screen."""
+        screen_rect = self.screen.get_rect()
+        for tuberculo in self.tuberculo.sprites():
+            if tuberculo.rect.bottom >= screen_rect.bottom:
+                self.tuberculo.empty()
+                break
+    def _check_juan_bottom(self):
+        """Check if any aliens have reached the bottom of the screen."""
+        screen_rect = self.screen.get_rect()
+        for juan in self.juan.sprites():
+            if juan.rect.bottom >= screen_rect.bottom:
                 # Treat this the same as if the ship got hit.
                 self._ship_hit()
                 break
@@ -180,6 +275,8 @@ class AlienInvasion:
             
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
+            self.juan.empty()
+            self.tuberculo.empty()
             self.bullets.empty()
             
             # Create a new fleet and center the ship.
@@ -191,6 +288,8 @@ class AlienInvasion:
         else:
             self.stats.game_active = False
             pygame.mouse.set_visible(True)
+
+
 
     def _create_fleet(self):
         """Create the fleet of aliens."""
@@ -212,6 +311,22 @@ class AlienInvasion:
             for alien_number in range(number_aliens_x):
                 self._create_alien(alien_number, row_number)
 
+    def _create_juanes(self):
+        juan = Juan(self)
+        self.x, self.y = juan.rect.size
+        for alien in self.aliens.sprites():
+            if alien.check_edges():
+                self._create_juan()
+                break
+
+    def _create_tuberculos(self):
+        tuberculo = Tuberculo(self)
+        self.x, self.y = tuberculo.rect.size
+        for alien in self.aliens.sprites():
+            if alien.check_edges():
+                self._create_tuberculo()
+                break
+
     def _create_alien(self, alien_number, row_number):
         """Create an alien and place it in the row."""
         alien = Alien(self)
@@ -221,18 +336,78 @@ class AlienInvasion:
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
 
+    def _create_juan(self):
+        """Create a juan and place it in the row."""
+        juan = Juan(self)
+        juan_width, juan_height = juan.rect.size
+        juan.x = juan_width
+        juan.rect.x = juan.x
+        juan.rect.y = juan.rect.height
+        self.juan.add(juan)
+
+    def _create_tuberculo(self):
+        """Create a juan and place it in the row."""
+        tuberculo = Tuberculo(self)
+        tuberculo_width, tuberculo_height = tuberculo.rect.size
+        tuberculo.x = tuberculo_width
+        tuberculo.rect.x = tuberculo.x
+        tuberculo.rect.y = tuberculo.rect.height
+        self.tuberculo.add(tuberculo)
+
+
+
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
         for alien in self.aliens.sprites():
             if alien.check_edges():
                 self._change_fleet_direction()
+                numero = random.randint(1, 100)
+                if numero == 1:
+                 self._create_juan()
+                if numero == 2:
+                 self._create_juan()
+                if numero == 3:
+                 self._create_juan()
+                if numero == 4:
+                 self._create_juan()
+                if numero == 5:
+                    self._create_juan()
+                if numero == 100:
+                    self._create_tuberculo()
+                if numero == 99:
+                    self._create_tuberculo()
+                if numero == 98:
+                    self._create_tuberculo()
+                if numero == 97:
+                    self._create_tuberculo()
+                if numero == 96:
+                    self._create_tuberculo()
+                if numero == 95:
+                    self._create_tuberculo()
                 break
-            
+
+
+    def _check_juan_edges(self):
+        """Respond appropriately if any juan have reached an edge."""
+        for juan in self.juan.sprites():
+            if juan.check_edges_j():
+                self._change_juan_direction()
+                break
+
     def _change_fleet_direction(self):
         """Drop the entire fleet and change the fleet's direction."""
         for alien in self.aliens.sprites():
             alien.rect.y += self.settings.fleet_drop_speed
         self.settings.fleet_direction *= -1
+
+    def _change_juan_direction(self):
+        """Drop the entire fleet and change the fleet's direction."""
+        for juan in self.juan.sprites():
+            juan.rect.y += self.settings.juan_drop_speed
+        self.settings.juan_direction *= -1
+
+
+
 
     def _update_screen(self):
         """Update images on the screen, and flip to the new screen."""
@@ -241,6 +416,8 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        self.juan.draw(self.screen)
+        self.tuberculo.draw(self.screen)
 
         # Draw the score information.
         self.sb.show_score()
