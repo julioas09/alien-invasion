@@ -19,6 +19,7 @@ class Settings:
 
         # Alien settings
         self.fleet_drop_speed = 10
+        self.xenomorph_drop_speed = 0.1
 
         # How quickly the game speeds up
         self.speedup_scale = 1.1
@@ -35,9 +36,11 @@ class Settings:
 
         # fleet_direction of 1 represents right; -1 represents left.
         self.fleet_direction = 1
+        self.xenomorph_direction = 10
 
         # Scoring
         self.alien_points = 50
+        self.xenomorphs_points = 250
 
     def increase_speed(self):
         """Increase speed settings and alien point values."""
