@@ -10,6 +10,10 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+from special_alien import sAlien
+
+
+
 
 
 class AlienInvasion:
@@ -33,7 +37,7 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
-
+        self.ps = pygame.sprite.Group()
         self._create_fleet()
 
         # Make the Play button.
@@ -45,11 +49,17 @@ class AlienInvasion:
             self._check_events()
 
             if self.stats.game_active:
+        
                 self.ship.update()
                 self._update_bullets()
                 self._update_aliens()
 
+                
+
+
             self._update_screen()
+
+
 
     def _check_events(self):
         """Respond to keypresses and mouse events."""
@@ -80,6 +90,7 @@ class AlienInvasion:
 
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
+            self.ps.empty()
             self.bullets.empty()
             
             # Create a new fleet and center the ship.
@@ -88,6 +99,7 @@ class AlienInvasion:
 
             # Hide the mouse cursor.
             pygame.mouse.set_visible(False)
+
 
     def _check_keydown_events(self, event):
         """Respond to keypresses."""
@@ -99,6 +111,13 @@ class AlienInvasion:
             sys.exit()
         elif event.key == pygame.K_SPACE:
             self._fire_bullet()
+        # add a special keycombination which acts like a "superpower"    
+        elif event.key == pygame.K_p:
+
+            self.settings.bullet_speed = 10.0
+
+
+
 
     def _check_keyup_events(self, event):
         """Respond to key releases."""
@@ -112,6 +131,8 @@ class AlienInvasion:
         if len(self.bullets) < self.settings.bullets_allowed:
             new_bullet = Bullet(self)
             self.bullets.add(new_bullet)
+
+
 
     def _update_bullets(self):
         """Update position of bullets and get rid of old bullets."""
@@ -130,6 +151,19 @@ class AlienInvasion:
         # Remove any bullets and aliens that have collided.
         collisions = pygame.sprite.groupcollide(
                 self.bullets, self.aliens, True, True)
+        # pc
+        pcollisions = pygame.sprite.groupcollide(
+                self.bullets, self.ps, True, False)
+
+        if pcollisions: 
+            self.stats.score += 500
+            self.stats.pumpkinlife = self.stats.pumpkinlife - 1
+            if self.stats.pumpkinlife == 0:
+                self.ps.empty()
+
+              
+                
+
 
         if collisions:
             for aliens in collisions.values():
@@ -147,6 +181,40 @@ class AlienInvasion:
             self.stats.level += 1
             self.sb.prep_level()
 
+        if self.stats.score == 200: 
+            self.stats.level = 2
+            self.sb.prep_level()
+
+           
+    def _update_ps(self):
+        self._check_fleet_edges()
+        self.ps.update()
+    
+        # Look for alien-ship collisions.
+        if pygame.sprite.spritecollideany(self.ship, self.ps):
+            self._ship_hit()
+
+        # Look for aliens hitting the bottom of the screen.
+        self._check_ps_bottom()
+
+    def _check_ps_bottom(self):
+        screen_rect = self.screen.get_rect()
+        for pumpkin in self.ps.sprites():
+            if pumpkin.rect.bottom >= screen_rect.bottom:
+                # Treat this the same as if the ship got hit.
+                self._ship_hit()
+                break
+
+    def _check_aliens_bottom(self):
+        """Check if any aliens have reached the bottom of the screen."""
+        screen_rect = self.screen.get_rect()
+        for alien in self.aliens.sprites():
+            if alien.rect.bottom >= screen_rect.bottom:
+                # Treat this the same as if the ship got hit.
+                self._ship_hit()
+                break
+
+
     def _update_aliens(self):
         """
         Check if the fleet is at an edge,
@@ -154,9 +222,13 @@ class AlienInvasion:
         """
         self._check_fleet_edges()
         self.aliens.update()
+        self.ps.update()
+    
 
         # Look for alien-ship collisions.
         if pygame.sprite.spritecollideany(self.ship, self.aliens):
+            self._ship_hit()
+        if pygame.sprite.spritecollideany(self.ship, self.ps):
             self._ship_hit()
 
         # Look for aliens hitting the bottom of the screen.
@@ -173,6 +245,8 @@ class AlienInvasion:
 
     def _ship_hit(self):
         """Respond to the ship being hit by an alien."""
+
+
         if self.stats.ships_left > 0:
             # Decrement ships_left, and update scoreboard.
             self.stats.ships_left -= 1
@@ -180,6 +254,7 @@ class AlienInvasion:
             
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
+            self.ps.empty()
             self.bullets.empty()
             
             # Create a new fleet and center the ship.
@@ -211,15 +286,30 @@ class AlienInvasion:
         for row_number in range(number_rows):
             for alien_number in range(number_aliens_x):
                 self._create_alien(alien_number, row_number)
+        
+        self._create_pumpkin()
+
+
 
     def _create_alien(self, alien_number, row_number):
         """Create an alien and place it in the row."""
         alien = Alien(self)
+        
         alien_width, alien_height = alien.rect.size
         alien.x = alien_width + 2 * alien_width * alien_number
         alien.rect.x = alien.x
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
+
+    def _create_pumpkin(self):
+        pumpkin = sAlien(self)
+        pumpkin.image = pygame.image.load('images/pumpkin.bmp')
+        
+        alien_width, alien_height = pumpkin.rect.size
+        pumpkin.x = alien_width + 2 * alien_width 
+        pumpkin.rect.x = pumpkin.x
+        pumpkin.rect.y = pumpkin.rect.height + 2 * pumpkin.rect.height 
+        self.ps.add(pumpkin)
 
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
@@ -227,7 +317,13 @@ class AlienInvasion:
             if alien.check_edges():
                 self._change_fleet_direction()
                 break
-            
+
+        for pumpkin in self.ps.sprites():
+            if pumpkin.check_edges():
+                pass
+                break
+   
+                     
     def _change_fleet_direction(self):
         """Drop the entire fleet and change the fleet's direction."""
         for alien in self.aliens.sprites():
@@ -241,6 +337,10 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        
+        if self.stats.level ==2: 
+            self.ps.draw(self.screen)
+
 
         # Draw the score information.
         self.sb.show_score()
@@ -250,6 +350,8 @@ class AlienInvasion:
             self.play_button.draw_button()
 
         pygame.display.flip()
+    
+
 
 
 if __name__ == '__main__':
