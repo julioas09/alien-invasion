@@ -17,6 +17,11 @@ class Settings:
         self.bullet_color = (60, 60, 60)
         self.bullets_allowed = 3
 
+        self.powerup_width = 10
+        self.powerup_height = 20
+        self.powerup_color = (240,248,255)
+        self.powerups_allowed = 5
+
         # Alien settings
         self.fleet_drop_speed = 10
 
@@ -31,6 +36,7 @@ class Settings:
         """Initialize settings that change throughout the game."""
         self.ship_speed = 1.5
         self.bullet_speed = 3.0
+        self.powerup_speed = 6.0
         self.alien_speed = 1.0
 
         # fleet_direction of 1 represents right; -1 represents left.
