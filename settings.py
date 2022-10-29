@@ -16,6 +16,7 @@ class Settings:
         self.bullet_height = 15
         self.bullet_color = (60, 60, 60)
         self.bullets_allowed = 3
+        
 
         # Alien settings
         self.fleet_drop_speed = 10
@@ -46,3 +47,15 @@ class Settings:
         self.alien_speed *= self.speedup_scale
 
         self.alien_points = int(self.alien_points * self.score_scale)
+
+    def power_up(self):
+        self.bullet_height = 30
+        self.bullet_width = 6
+        self.bullet_speed = 6
+        self.bullet_color=(255, 165, 0)
+
+    def power_down(self):
+        self.bullet_height = 15
+        self.bullet_width  = 3
+        self.bullet_speed = 3
+        self.bullet_color=(60, 60, 60)

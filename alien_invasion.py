@@ -1,5 +1,7 @@
 import sys
+import random
 from time import sleep
+import threading 
 
 import pygame
 
@@ -226,6 +228,12 @@ class AlienInvasion:
         for alien in self.aliens.sprites():
             if alien.check_edges():
                 self._change_fleet_direction()
+                #Powerup for 10 seconds
+                random_chance=random.randrange(20)	
+                if random_chance==0:
+                    self.settings.power_up()
+                    start_time = threading.Timer(10,self.settings.power_down)
+                    start_time.start()
                 break
             
     def _change_fleet_direction(self):
