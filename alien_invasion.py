@@ -2,6 +2,7 @@ import sys
 from time import sleep
 
 import pygame
+from alienass import Alienass
 
 from settings import Settings
 from game_stats import GameStats
@@ -10,7 +11,8 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
-
+from alienass import Alienass 
+import random
 
 class AlienInvasion:
     """Overall class to manage game assets and behavior."""
@@ -33,6 +35,7 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.diagonalAliens = pygame.sprite.Group()
 
         self._create_fleet()
 
@@ -131,9 +134,21 @@ class AlienInvasion:
         collisions = pygame.sprite.groupcollide(
                 self.bullets, self.aliens, True, True)
 
+        collisions2 = pygame.sprite.groupcollide(self.bullets, self.diagonalAliens, True, False)
+
         if collisions:
             for aliens in collisions.values():
                 self.stats.score += self.settings.alien_points * len(aliens)
+            self.sb.prep_score()
+            self.sb.check_high_score()
+        if collisions2:
+            for aliens in collisions2.values():
+                self.stats.score += self.settings.alien_points * len(aliens)
+                for alien in aliens:
+                    if alien.lives == 0:
+                        self.diagonalAliens.remove(alien)
+                    else:
+                        alien.lives -= 1
             self.sb.prep_score()
             self.sb.check_high_score()
 
@@ -154,6 +169,7 @@ class AlienInvasion:
         """
         self._check_fleet_edges()
         self.aliens.update()
+        self.diagonalAliens.update()
 
         # Look for alien-ship collisions.
         if pygame.sprite.spritecollideany(self.ship, self.aliens):
@@ -171,6 +187,13 @@ class AlienInvasion:
                 self._ship_hit()
                 break
 
+        for alien in self.diagonalAliens.sprites():
+            if alien.rect.bottom >= screen_rect.bottom:
+
+                self._ship_hit()
+                break
+
+
     def _ship_hit(self):
         """Respond to the ship being hit by an alien."""
         if self.stats.ships_left > 0:
@@ -180,6 +203,7 @@ class AlienInvasion:
             
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
+            self.diagonalAliens.empty()
             self.bullets.empty()
             
             # Create a new fleet and center the ship.
@@ -220,19 +244,47 @@ class AlienInvasion:
         alien.rect.x = alien.x
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
+    
+
+    def _create_diagonal_alien(self):
+        diagonal_alien = Alienass(self)
+        diagonal_alien_width, diagonal_alien_height = diagonal_alien.rect.size
+        diagonal_alien.x = diagonal_alien_width 
+        diagonal_alien.rect.x = diagonal_alien.x
+        diagonal_alien.rect.y = diagonal_alien.rect.height 
+        self.diagonalAliens.add(diagonal_alien)
+
 
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
         for alien in self.aliens.sprites():
             if alien.check_edges():
+                x = random.randint(0, 100)
                 self._change_fleet_direction()
+                if x <= 50 and len(self.diagonalAliens) == 0:
+                    self._create_diagonal_alien()
                 break
+        for alien in self.diagonalAliens.sprites():
+            if alien.check_edges():
+                alien.direction *= -1
+                break
+            
             
     def _change_fleet_direction(self):
         """Drop the entire fleet and change the fleet's direction."""
         for alien in self.aliens.sprites():
             alien.rect.y += self.settings.fleet_drop_speed
         self.settings.fleet_direction *= -1
+
+
+
+    def _change_diagonal_alien_direction(self):
+
+        for alien in self.diagonalAliens.sprites():
+            alien.rect.y += self.settings.fleet_drop_speed
+        self.settings.alienDirection *= -1
+
+
 
     def _update_screen(self):
         """Update images on the screen, and flip to the new screen."""
@@ -241,6 +293,7 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
+        self.diagonalAliens.draw(self.screen)
 
         # Draw the score information.
         self.sb.show_score()
