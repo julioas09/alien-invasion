@@ -230,7 +230,7 @@ class AlienInvasion:
             if alien.check_edges():
                 self._change_fleet_direction()
                 self.acc +=1
-                if self.acc > 5:
+                if self.acc > 6:
                     self.acc = 0
                     chance = random.randrange(0,100)
                     if chance<20:
