@@ -10,8 +10,10 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
-
-
+from random import random
+from power import Power_up
+import threading 
+from playsound import playsound
 class AlienInvasion:
     """Overall class to manage game assets and behavior."""
 
@@ -19,20 +21,24 @@ class AlienInvasion:
         """Initialize the game, and create game resources."""
         pygame.init()
         self.settings = Settings()
-
+            
+        
         self.screen = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
         self.settings.screen_width = self.screen.get_rect().width
         self.settings.screen_height = self.screen.get_rect().height
         pygame.display.set_caption("Alien Invasion")
-
+        self.power_up= None
         # Create an instance to store game statistics,
         #   and create a scoreboard.
         self.stats = GameStats(self)
         self.sb = Scoreboard(self)
-
         self.ship = Ship(self)
+        self.power = Power_up(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.powers=pygame.sprite.Group()
+        
+        
 
         self._create_fleet()
 
@@ -48,6 +54,8 @@ class AlienInvasion:
                 self.ship.update()
                 self._update_bullets()
                 self._update_aliens()
+                self._update_power()
+                
 
             self._update_screen()
 
@@ -81,6 +89,7 @@ class AlienInvasion:
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
             self.bullets.empty()
+            self.powers.empty()
             
             # Create a new fleet and center the ship.
             self._create_fleet()
@@ -109,9 +118,10 @@ class AlienInvasion:
 
     def _fire_bullet(self):
         """Create a new bullet and add it to the bullets group."""
-        if len(self.bullets) < self.settings.bullets_allowed:
-            new_bullet = Bullet(self)
-            self.bullets.add(new_bullet)
+        for alien in self.aliens.sprites():
+                if len(self.bullets) < self.settings.bullets_allowed:
+                    new_bullet = Bullet(self)
+                    self.bullets.add(new_bullet)
 
     def _update_bullets(self):
         """Update position of bullets and get rid of old bullets."""
@@ -140,6 +150,7 @@ class AlienInvasion:
         if not self.aliens:
             # Destroy existing bullets and create new fleet.
             self.bullets.empty()
+            self.powers.empty()
             self._create_fleet()
             self.settings.increase_speed()
 
@@ -162,6 +173,26 @@ class AlienInvasion:
         # Look for aliens hitting the bottom of the screen.
         self._check_aliens_bottom()
 
+    def _update_power(self):
+
+        self.powers.update()
+        self._check_power_collision()
+
+
+    def _check_power_collision(self):
+
+        collisions = pygame.sprite.groupcollide(
+                self.powers, self.bullets, True, True)
+
+        if collisions:
+            playsound('images/powerup.mp3')
+            self.settings.bullet_height = 20
+            self.settings.bullet_width = 75
+            self.upgrade = True
+
+
+
+
     def _check_aliens_bottom(self):
         """Check if any aliens have reached the bottom of the screen."""
         screen_rect = self.screen.get_rect()
@@ -179,8 +210,10 @@ class AlienInvasion:
             self.sb.prep_ships()
             
             # Get rid of any remaining aliens and bullets.
+            self.powers.empty()
             self.aliens.empty()
             self.bullets.empty()
+            
             
             # Create a new fleet and center the ship.
             self._create_fleet()
@@ -221,10 +254,24 @@ class AlienInvasion:
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
 
+   
+    def _create_power(self):
+        power=Power_up(self)
+        self.powers.add(power)
+
+
+
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
+
         for alien in self.aliens.sprites():
             if alien.check_edges():
+                if random() < 0.05:
+                    self._create_power()
+                    start_time = threading.Timer(5,self.settings.powerdown)
+                    start_time.start()
+
+
                 self._change_fleet_direction()
                 break
             
@@ -241,8 +288,10 @@ class AlienInvasion:
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
         self.aliens.draw(self.screen)
-
+        self.powers.draw(self.screen)
         # Draw the score information.
+        
+        self._update_power()
         self.sb.show_score()
 
         # Draw the play button if the game is inactive.
@@ -250,6 +299,15 @@ class AlienInvasion:
             self.play_button.draw_button()
 
         pygame.display.flip()
+    
+    
+        
+        
+
+
+
+      
+
 
 
 if __name__ == '__main__':

@@ -14,6 +14,7 @@ class Ship(Sprite):
 
         # Load the ship image and get its rect.
         self.image = pygame.image.load('images/ship.bmp')
+        self.image = pygame.transform.scale(self.image, (100, 50))
         self.rect = self.image.get_rect()
 
         # Start each new ship at the bottom center of the screen.
@@ -21,6 +22,8 @@ class Ship(Sprite):
 
         # Store a decimal value for the ship's horizontal position.
         self.x = float(self.rect.x)
+        self.y  = float(self.rect.y)
+
 
         # Movement flags
         self.moving_right = False
