@@ -1,8 +1,8 @@
 import sys
 from time import sleep
-
+import random
 import pygame
-
+from turtle import width
 from settings import Settings
 from game_stats import GameStats
 from scoreboard import Scoreboard
@@ -10,6 +10,7 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+
 
 
 class AlienInvasion:
@@ -38,7 +39,8 @@ class AlienInvasion:
 
         # Make the Play button.
         self.play_button = Button(self, "Play")
-
+        self.turret=False
+        self.acc=5
     def run_game(self):
         """Start the main loop for the game."""
         while True:
@@ -221,13 +223,23 @@ class AlienInvasion:
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
 
+
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
         for alien in self.aliens.sprites():
             if alien.check_edges():
                 self._change_fleet_direction()
+                self.acc +=1
+                if self.acc > 6:
+                    self.acc = 0
+                    chance = random.randrange(0,100)
+                    if chance<20:
+                        self.settings.turret()
+                    
+                    else:
+                        self.settings.normalBullet()
                 break
-            
+
     def _change_fleet_direction(self):
         """Drop the entire fleet and change the fleet's direction."""
         for alien in self.aliens.sprites():
