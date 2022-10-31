@@ -10,6 +10,8 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+import random 
+from alien import AlienMonster
 
 
 class AlienInvasion:
@@ -33,6 +35,7 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.AlienMonsterhist={}
 
         self._create_fleet()
 
@@ -129,10 +132,23 @@ class AlienInvasion:
         """Respond to bullet-alien collisions."""
         # Remove any bullets and aliens that have collided.
         collisions = pygame.sprite.groupcollide(
-                self.bullets, self.aliens, True, True)
-
-        if collisions:
+                self.bullets, self.aliens, True, False)
+        if collisions: 
             for aliens in collisions.values():
+                if "AlienMonster Sprite" in str(aliens):
+                    if str(aliens[0]) in self.AlienMonsterhist.keys():
+                        if self.AlienMonsterhist[str(aliens[0])]>=3:
+                            aliens[0].kill()
+                            self.stats.score += 5*self.settings.alien_points
+                        else:
+                            self.AlienMonsterhist[str(aliens[0])]+=1
+                            
+                    else:
+                        self.AlienMonsterhist[str(aliens[0])]=1
+                        print("hey", self.AlienMonsterhist.keys())
+                        
+                else:
+                    aliens[0].kill()
                 self.stats.score += self.settings.alien_points * len(aliens)
             self.sb.prep_score()
             self.sb.check_high_score()
@@ -196,7 +212,7 @@ class AlienInvasion:
         """Create the fleet of aliens."""
         # Create an alien and find the number of aliens in a row.
         # Spacing between each alien is equal to one alien width.
-        alien = Alien(self)
+        alien = Alien(self)    
         alien_width, alien_height = alien.rect.size
         available_space_x = self.settings.screen_width - (2 * alien_width)
         number_aliens_x = available_space_x // (2 * alien_width)
@@ -221,10 +237,23 @@ class AlienInvasion:
         alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
         self.aliens.add(alien)
 
+    def _create_alien_monter(self, alien_number, row_number):
+        """Create an alien and place it in the row."""
+        alien = AlienMonster(self)
+        alien_width, alien_height = alien.rect.size
+        alien.x = alien_width + 2 * alien_width * alien_number
+        alien.rect.x = alien.x
+        alien.rect.y = alien.rect.height + 2 * alien.rect.height * row_number
+        self.aliens.add(alien)
+
     def _check_fleet_edges(self):
         """Respond appropriately if any aliens have reached an edge."""
         for alien in self.aliens.sprites():
             if alien.check_edges():
+                chance_alien_appearing= random.randint(0,100)
+                if chance_alien_appearing<=20:
+                    row= random.randint(0,5)
+                    self._create_alien_monter(1, row)
                 self._change_fleet_direction()
                 break
             
