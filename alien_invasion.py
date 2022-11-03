@@ -2,6 +2,7 @@ import sys
 from time import sleep
 
 import pygame
+import random
 
 from settings import Settings
 from game_stats import GameStats
@@ -10,6 +11,8 @@ from button import Button
 from ship import Ship
 from bullet import Bullet
 from alien import Alien
+from turtle import width
+
 
 
 class AlienInvasion:
@@ -33,6 +36,8 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.powerUp = False
+        self.acc = 5
 
         self._create_fleet()
 
@@ -222,11 +227,34 @@ class AlienInvasion:
         self.aliens.add(alien)
 
     def _check_fleet_edges(self):
+        self.screen.fill((87,181,190))
         """Respond appropriately if any aliens have reached an edge."""
+
         for alien in self.aliens.sprites():
             if alien.check_edges():
+
                 self._change_fleet_direction()
-                break
+                self.acc=0
+                # every time an alien hits the edges of the screen, the system will see if it activates powerUP
+                r = random.randrange(0,100)
+                if r < 90: # 5% of possibilities to appear
+                    #self.screen.fill((87,181,190))
+                    self.settings.powerup_bullet()
+                    font = pygame.font.SysFont('timesnewroman',  80)
+                    ptext = font.render('POWER UP', True, (0, 0, 0))
+                    self.screen.blit(ptext, (100,100)) 
+
+                else:
+                    self.settings.return_normal()
+                    #self.screen.fill(self.settings.bg_color)
+
+            break
+
+        if self.powerUp== True:
+            self.screen.fill((87,181,190))
+
+        else:
+            self.screen.fill(self.settings.bg_color)
             
     def _change_fleet_direction(self):
         """Drop the entire fleet and change the fleet's direction."""
@@ -236,7 +264,7 @@ class AlienInvasion:
 
     def _update_screen(self):
         """Update images on the screen, and flip to the new screen."""
-        self.screen.fill(self.settings.bg_color)
+        #self.screen.fill(self.settings.bg_color)
         self.ship.blitme()
         for bullet in self.bullets.sprites():
             bullet.draw_bullet()
