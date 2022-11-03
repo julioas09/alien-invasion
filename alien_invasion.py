@@ -12,6 +12,12 @@ from bullet import Bullet
 from alien import Alien
 
 
+import playsound 
+import threading
+from random import random
+from powerup import poweruppp
+
+
 class AlienInvasion:
     """Overall class to manage game assets and behavior."""
 
@@ -25,6 +31,7 @@ class AlienInvasion:
         self.settings.screen_height = self.screen.get_rect().height
         pygame.display.set_caption("Alien Invasion")
 
+        
         # Create an instance to store game statistics,
         #   and create a scoreboard.
         self.stats = GameStats(self)
@@ -33,6 +40,7 @@ class AlienInvasion:
         self.ship = Ship(self)
         self.bullets = pygame.sprite.Group()
         self.aliens = pygame.sprite.Group()
+        self.powerups=pygame.sprite.Group()
 
         self._create_fleet()
 
@@ -48,6 +56,7 @@ class AlienInvasion:
                 self.ship.update()
                 self._update_bullets()
                 self._update_aliens()
+                self.update_power()
 
             self._update_screen()
 
@@ -81,6 +90,7 @@ class AlienInvasion:
             # Get rid of any remaining aliens and bullets.
             self.aliens.empty()
             self.bullets.empty()
+            self.powerups.empty()
             
             # Create a new fleet and center the ship.
             self._create_fleet()
@@ -162,6 +172,25 @@ class AlienInvasion:
         # Look for aliens hitting the bottom of the screen.
         self._check_aliens_bottom()
 
+
+
+    def update_power(self):
+
+        self.powerups.update()
+        self._check_power_collision()
+
+
+    def _check_power_collision(self):
+
+        collisions = pygame.sprite.groupcollide(
+                self.powerups, self.bullets, True, True)
+
+        if collisions:
+            self.settings.bullet_height = 15
+            self.settings.bullet_width = 60
+            self.upgrade = True
+
+
     def _check_aliens_bottom(self):
         """Check if any aliens have reached the bottom of the screen."""
         screen_rect = self.screen.get_rect()
@@ -212,6 +241,12 @@ class AlienInvasion:
             for alien_number in range(number_aliens_x):
                 self._create_alien(alien_number, row_number)
 
+
+
+    def _create_power(self):
+        power=poweruppp(self)
+        self.powerups.add(power)
+
     def _create_alien(self, alien_number, row_number):
         """Create an alien and place it in the row."""
         alien = Alien(self)
@@ -225,6 +260,11 @@ class AlienInvasion:
         """Respond appropriately if any aliens have reached an edge."""
         for alien in self.aliens.sprites():
             if alien.check_edges():
+                if random() < 0.05:
+                    self._create_power()
+                    start_time = threading.Timer(5,self.settings.powerdown)
+                    start_time.start()
+
                 self._change_fleet_direction()
                 break
             
@@ -244,6 +284,7 @@ class AlienInvasion:
 
         # Draw the score information.
         self.sb.show_score()
+        self.powerups.draw(self.screen)
 
         # Draw the play button if the game is inactive.
         if not self.stats.game_active:
